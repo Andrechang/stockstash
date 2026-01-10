@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stockstash"
+version = "0.1.0"
+description = "Intelligent time-series caching with Parquet and gap-aware incremental downloads"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name="AndreChang", email="andrechang67@gmail.com" }
+]
+keywords = [
+    "timeseries",
+    "cache",
+    "parquet",
+    "finance",
+    "yfinance",
+    "pandas"
+]
+
+dependencies = [
+    "pandas>=1.5",
+    "pyarrow>=10.0",
+    "yfinance>=0.2"
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries"
+]
+
+[project.urls]
+Homepage = "https://github.com/Andrechang/stockstash"
+Repository = "https://github.com/Andrechang/stockstash"
+Issues = "https://github.com/Andrechang/stockstash/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["stockstash*"]
