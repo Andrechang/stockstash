@@ -21,20 +21,6 @@ class TimeSeriesCache:
         if self.store.exists(key):
             df = self.store.read(key)
             logger.debug(f"Cache hit for {key}: loaded {len(df)} existing records")
-            
-            # Ensure timezone consistency
-            if not df.empty and df.index.tz is not None:
-                # If dataframe has timezone info, localize start/end to the same timezone
-                if start.tz is None:
-                    start = start.tz_localize(df.index.tz)
-                if end.tz is None:
-                    end = end.tz_localize(df.index.tz)
-            elif not df.empty and df.index.tz is None:
-                # If dataframe is timezone-naive, ensure start/end are also naive
-                if start.tz is not None:
-                    start = start.tz_localize(None)
-                if end.tz is not None:
-                    end = end.tz_localize(None)
         else:
             df = pd.DataFrame()
             logger.debug(f"Cache miss for {key}: no existing data found")
@@ -46,7 +32,14 @@ class TimeSeriesCache:
             self.store.write(key, new)
             return new
 
-        missing = find_missing_ranges(df.index, start, end)
+        # Ensure Date column is datetime for range operations
+        df['Date'] = pd.to_datetime(df['Date'])
+        
+        # Convert start/end to date-only for comparison
+        start_date = start.date()
+        end_date = end.date()
+        
+        missing = find_missing_ranges(df['Date'].dt.date, start_date, end_date)
         logger.debug(f"Found {len(missing)} missing ranges for {key}: {missing}")
 
         downloaded_count = 0
@@ -60,14 +53,20 @@ class TimeSeriesCache:
             else:
                 logger.debug(f"No data available for range {s} to {e}")
 
-        df = (
-            df.sort_index()
-              .loc[start:end]
-              .loc[~df.index.duplicated(keep="last")]
-        )
-
-        reused_count = len(df) - downloaded_count
-        logger.debug(f"Final result for {key}: {len(df)} total records (reused: {reused_count}, downloaded: {downloaded_count})")
+        # Sort and remove duplicates from the complete dataset
+        df['Date'] = pd.to_datetime(df['Date'])
+        df = df.sort_values('Date')
+        df = df.drop_duplicates(subset=['Date'], keep='last')
         
-        self.store.write(key, df)
-        return df
+        # Save the complete merged dataset (includes data outside requested range)
+        if downloaded_count > 0:
+            self.store.write(key, df)
+        
+        # Filter by date range for return value only
+        result_df = df[(df['Date'] >= start) & (df['Date'] <= end)]
+
+        reused_count = len(result_df) - downloaded_count
+        logger.debug(f"Saved {len(df)} total records to cache for {key}")
+        logger.debug(f"Returning {len(result_df)} records for requested range (reused: {reused_count}, downloaded: {downloaded_count})")
+        
+        return result_df

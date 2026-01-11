@@ -13,7 +13,21 @@ class ParquetStore:
         return self.path(key).exists()
 
     def read(self, key: str) -> pd.DataFrame:
-        return pd.read_parquet(self.path(key))
+        df = pd.read_parquet(self.path(key))
+        df.reset_index(drop=True, inplace=True)    
+
+        # Convert Date to date-only (remove timezone and time)
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date']).dt.date
+        
+        return df
 
     def write(self, key: str, df: pd.DataFrame):
+        df = df.copy()  # Don't modify original dataframe
+        df.reset_index(drop=True, inplace=True)
+        
+        # Convert Date to date-only (remove timezone and time)
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date']).dt.date
+        
         df.to_parquet(self.path(key))
